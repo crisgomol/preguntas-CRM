@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CARI AI — Tablero de Seguimiento de Bots</title>
+<style>
+/* =====================================================================
+   VARIABLES Y RESET
+   ===================================================================== */
+:root {
+  --verde:       #2bb673;
+  --verde-dark:  #1e8f58;
+  --verde-mid:   #22a065;
+  --verde-light: #d4f4e5;
+  --verde-pale:  #edfaf3;
+  --verde-glow:  rgba(43,182,115,0.18);
+  --bg:          #0d1117;
+  --bg2:         #161b22;
+  --bg3:         #1c2330;
+  --panel:       rgba(22,27,34,0.92);
+  --border:      rgba(43,182,115,0.22);
+  --border2:     rgba(43,182,115,0.08);
+  --text:        #e6edf3;
+  --text2:       #8b949e;
+  --selected:    rgba(43,182,115,0.14);
+  --selected-b:  #2bb673;
+  --shadow:      0 4px 24px rgba(0,0,0,0.45);
+  --radius:      10px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* =====================================================================
+   FONDO DINÁMICO (imagen o patrón de grilla)
+   ===================================================================== */
+#bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(43,182,115,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(43,182,115,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+#bg-layer.has-img {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+#bg-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(13,17,23,0.78);
+}
+
+/* =====================================================================
+   LAYOUT PRINCIPAL
+   ===================================================================== */
+#app {
+  position: relative;
+  z-index: 1;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+/* =====================================================================
+   CABECERA
+   ===================================================================== */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-icon {
+  width: 46px;
+  height: 46px;
+  background: linear-gradient(135deg, var(--verde-dark), var(--verde));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: 0 0 20px var(--verde-glow);
+  flex-shrink: 0;
+}
+
+.title-block h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.3px;
+  line-height: 1.2;
+}
+
+.title-block p {
+  font-size: .75rem;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+/* Badges de stats */
+.header-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  text-align: center;
+  min-width: 80px;
+}
+
+.stat-badge .sv { font-size: 1.3rem; font-weight: 700; color: var(--verde); line-height: 1; }
+.stat-badge .sl { font-size: .65rem; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+
+/* =====================================================================
+   BARRA DE HERRAMIENTAS
+   ===================================================================== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+/* Botones base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+  font-size: .78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .18s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.btn:hover { background: var(--bg2); border-color: var(--verde); color: var(--verde); }
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--verde-dark), var(--verde));
+  border-color: var(--verde);
+  color: #fff;
+  box-shadow: 0 2px 12px var(--verde-glow);
+}
+
+.btn.primary:hover { filter: brightness(1.1); }
+
+.btn.danger { border-color: rgba(229,57,53,.35); }
+.btn.danger:hover { border-color: #e53935; color: #e53935; }
+
+/* Micrófono */
+.btn-mic {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--verde);
+  background: var(--bg3);
+  color: var(--verde);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .18s;
+  box-shadow: 0 0 0 0 var(--verde-glow);
+  flex-shrink: 0;
+}
+
+.btn-mic:hover { background: var(--verde-glow); }
+
+.btn-mic.active {
+  background: var(--verde);
+  color: #fff;
+  animation: pulse-mic 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-mic {
+  0%   { box-shadow: 0 0 0 0 rgba(43,182,115,.6); }
+  70%  { box-shadow: 0 0 0 12px rgba(43,182,115,0); }
+  100% { box-shadow: 0 0 0 0 rgba(43,182,115,0); }
+}
+
+/* Tooltip del micrófono */
+.mic-status {
+  font-size: .72rem;
+  color: var(--verde);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all .2s;
+}
+
+.mic-status.idle { color: var(--text2); }
+
+/* Input de imagen */
+.img-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: .76rem;
+  cursor: pointer;
+  transition: all .18s;
+  white-space: nowrap;
+}
+
+.img-label:hover { border-color: var(--verde); color: var(--verde); }
+#imgInput { display: none; }
+
+.toolbar-sep {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* =====================================================================
+   CONTENEDOR DE TABLA
+   ===================================================================== */
+.table-container {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: auto;
+  max-height: 72vh;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Scrollbar estilizado */
+.table-container::-webkit-scrollbar { width: 6px; height: 6px; }
+.table-container::-webkit-scrollbar-track { background: var(--bg2); }
+.table-container::-webkit-scrollbar-thumb { background: var(--verde-dark); border-radius: 3px; }
+
+/* =====================================================================
+   TABLA
+   ===================================================================== */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  width: max-content;
+  table-layout: fixed;
+}
+
+/* CABECERA FIJA */
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+thead tr th {
+  background: linear-gradient(180deg, #0e2a1a 0%, #102e1d 100%);
+  color: var(--verde);
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  padding: 13px 14px;
+  border-bottom: 2px solid var(--verde-dark);
+  border-right: 1px solid var(--border2);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  min-width: 140px;
+  position: relative;
+}
+
+thead tr th:first-child { min-width: 48px; width: 48px; text-align: center; }
+thead tr th:last-child { border-right: none; min-width: 60px; width: 60px; }
+
+/* Columna numérica de filas */
+thead tr th.col-num { cursor: default; }
+
+/* Botón agregar columna */
+th.add-col-btn {
+  cursor: pointer !important;
+  color: var(--text2) !important;
+  background: var(--bg3) !important;
+  min-width: 50px !important;
+  width: 50px !important;
+  text-align: center;
+  font-size: 1.1rem !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  border-left: 1px dashed var(--border) !important;
+  transition: all .18s;
+}
+
+th.add-col-btn:hover { color: var(--verde) !important; background: var(--verde-glow) !important; }
+
+/* ---- CUERPO ---- */
+tbody tr {
+  transition: background .12s;
+}
+
+tbody tr:nth-child(even) td { background: rgba(43,182,115,0.03); }
+tbody tr:hover td { background: var(--verde-glow) !important; }
+
+tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border2);
+  border-right: 1px solid var(--border2);
+  font-size: .8rem;
+  color: var(--text);
+  vertical-align: middle;
+  min-width: 140px;
+  max-width: 340px;
+  line-height: 1.45;
+  outline: none;
+  word-break: break-word;
+  transition: background .1s;
+}
+
+tbody td:first-child {
+  min-width: 48px;
+  width: 48px;
+  text-align: center;
+  color: var(--text2);
+  font-size: .7rem;
+  cursor: default;
+  font-weight: 600;
+  background: var(--bg3) !important;
+  border-right: 2px solid var(--border);
+  pointer-events: none;
+  user-select: none;
+}
+
+tbody td:last-child {
+  min-width: 60px;
+  width: 60px;
+  text-align: center;
+  border-right: none;
+}
+
+/* Celda seleccionada */
+td.selected {
+  background: var(--selected) !important;
+  box-shadow: inset 0 0 0 2px var(--selected-b);
+  border-radius: 0;
+}
+
+/* Botón eliminar fila */
+.btn-del-row {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: .85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+
+.btn-del-row:hover { background: rgba(229,57,53,.12); border-color: #e53935; color: #e53935; }
+
+/* Fila de agregar nueva fila */
+tr.add-row td {
+  text-align: center;
+  color: var(--text2);
+  font-size: .75rem;
+  cursor: pointer;
+  padding: 8px;
+  background: var(--bg2) !important;
+  border-top: 1px dashed var(--border);
+  transition: all .15s;
+}
+
+tr.add-row:hover td { background: var(--verde-glow) !important; color: var(--verde); }
+
+/* =====================================================================
+   CHIPS / TAGS dentro de celdas
+   ===================================================================== */
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: .68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip-green  { background: rgba(43,182,115,.15); color: #2bb673; border: 1px solid rgba(43,182,115,.3); }
+.chip-yellow { background: rgba(245,158,11,.12); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+.chip-red    { background: rgba(229,57,53,.12);  color: #e53935; border: 1px solid rgba(229,57,53,.3); }
+.chip-blue   { background: rgba(56,189,248,.12); color: #38bdf8; border: 1px solid rgba(56,189,248,.3); }
+
+/* =====================================================================
+   FOOTER
+   ===================================================================== */
+footer {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.footer-note {
+  font-size: .7rem;
+  color: var(--text2);
+}
+
+.footer-note span { color: var(--verde); font-weight: 600; }
+
+/* =====================================================================
+   TOAST NOTIFICATION
+   ===================================================================== */
+#toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background: var(--bg3);
+  border: 1px solid var(--verde);
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: .8rem;
+  color: var(--verde);
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all .3s;
+  pointer-events: none;
+  max-width: 320px;
+}
+
+#toast.show { opacity: 1; transform: translateY(0); }
+
+/* =====================================================================
+   MODAL de nombre de columna
+   ===================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  width: 340px;
+  box-shadow: var(--shadow);
+}
+
+.modal h3 { font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+
+.modal input {
+  width: 100%;
+  padding: 9px 13px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: .85rem;
+  outline: none;
+  margin-bottom: 16px;
+}
+
+.modal input:focus { border-color: var(--verde); }
+
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div id="bg-layer"></div>
+
+<div id="app">
+
+  <header>
+    <div class="logo-area">
+      <div class="logo-icon">🤖</div>
+      <div class="title-block">
+        <h1>CARI AI — Tablero de Seguimiento de Bots</h1>
+        <p>Panel de control · Customer Success · Q1 2026</p>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-badge"><div class="sv" id="stat-total">11</div><div class="sl">Bots</div></div>
+      <div class="stat-badge"><div class="sv" id="stat-activos" style="color:#2bb673">—</div><div class="sl">Activos</div></div>
+      <div class="stat-badge"><div class="sv" id="stat-alerta" style="color:#f59e0b">—</div><div class="sl">Alerta</div></div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn-mic" id="btnMic" onclick="toggleMic()" title="Clic para dictar en la celda seleccionada">🎙️</button>
+    <span class="mic-status idle" id="micStatus">Selecciona una celda y haz clic en 🎙️ para dictar</span>
+
+    <div class="toolbar-sep"></div>
+
+    <button class="btn" onclick="addRow()">➕ Nueva fila</button>
+    <button class="btn" onclick="openColModal()">➕ Nueva columna</button>
+
+    <div class="toolbar-sep"></div>
+
+    <button class="btn primary" onclick="exportExcel()">📊 Exportar a Excel</button>
+
+    <div class="toolbar-sep"></div>
+
+    <label class="img-label" for="imgInput">🖼️ Fondo personalizado</label>
+    <input type="file" id="imgInput" accept="image/*" onchange="setBgImage(this)">
+    <button class="btn danger" onclick="removeBg()" title="Quitar imagen de fondo">✕ Quitar fondo</button>
+  </div>
+
+  <div class="table-container" id="tableWrap">
+    <table id="mainTable">
+      <thead id="tableHead">
+        <tr id="headRow">
+          <th class="col-num">#</th>
+          <th class="add-col-btn" onclick="openColModal()" title="Agregar columna">＋</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <div class="footer-note">
+      <span id="footerRows">11</span> filas · <span id="footerCols">8</span> columnas · 
+      Celda activa: <span id="footerCell">ninguna</span>
+    </div>
+    <div class="footer-note">CARI AI Customer Success &nbsp;|&nbsp; Tablero v2.0</div>
+  </footer>
+
+</div><div id="toast"></div>
+
+<div class="modal-overlay" id="colModal">
+  <div class="modal">
+    <h3>➕ Nueva columna</h3>
+    <input type="text" id="colNameInput" placeholder="Nombre de la columna..." onkeydown="if(event.key==='Enter')confirmAddCol()">
+    <div class="modal-btns">
+      <button class="btn" onclick="closeColModal()">Cancelar</button>
+      <button class="btn primary" onclick="confirmAddCol()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* -------------------------------------------------------------------
+   DEFINICIÓN DE COLUMNAS BASE
+   ------------------------------------------------------------------- */
+const BASE_COLS = [
+  { key: 'posventa',     label: 'Posventa a Cargo',    width: 160 },
+  { key: 'id_bot',       label: 'ID BOT',              width: 100 },
+  { key: 'nombre_bot',   label: 'Nombre BOT',          width: 160 },
+  { key: 'estado',       label: 'Estado BOT',          width: 130 },
+  { key: 'salud',        label: 'Salud del BOT',       width: 130 },
+  { key: 'sesiones',     label: 'Sesiones',            width: 110 },
+  { key: 'etiqueta_ai',  label: 'Etiqueta de AI',      width: 150 },
+  { key: 'obs_sesiones', label: 'Observación/Sesiones', width: 220 }
+];
+
+/* -------------------------------------------------------------------
+   DATOS INICIALES — 11 filas de bots
+   ------------------------------------------------------------------- */
+const INITIAL_DATA = [
+  { posventa:'Yeisson Ballesteros', id_bot:'1383', nombre_bot:'Juancho',          estado:'🟢 Activo',  salud:'✅ Óptima',  sesiones:'30.824', etiqueta_ai:'Servicio al cliente', obs_sesiones:'Tasa de transferencia 57,08% — sobre meta 40%' },
+  { posventa:'Yeisson Ballesteros', id_bot:'1412', nombre_bot:'ABPS AUNA',        estado:'🟢 Activo',  salud:'⚠️ Alerta',  sesiones:'13.536', etiqueta_ai:'Asignar cita',        obs_sesiones:'Transferencia 43,20% — meta 25% — requiere mejoras' },
+  { posventa:'Consultor CARI',      id_bot:'1250', nombre_bot:'Bot Ventas Norte', estado:'🟢 Activo',  salud:'✅ Óptima',  sesiones:'8.210',  etiqueta_ai:'Ventas',              obs_sesiones:'Desempeño estable en Q1' },
+  { posventa:'Consultor CARI',      id_bot:'1301', nombre_bot:'Soporte Técnico',  estado:'🟡 Revisión',salud:'⚠️ Alerta',  sesiones:'5.430',  etiqueta_ai:'Soporte',             obs_sesiones:'Pendiente actualización de flujos' },
+  { posventa:'Yeisson Ballesteros', id_bot:'1355', nombre_bot:'CRM Bot',          estado:'🟢 Activo',  salud:'✅ Óptima',  sesiones:'11.020', etiqueta_ai:'CRM',                 obs_sesiones:'Integración con Salesforce activa' },
+  { posventa:'Consultor CARI',      id_bot:'1389', nombre_bot:'Cobranza Bot',     estado:'🔴 Inactivo',salud:'❌ Crítica', sesiones:'0',      etiqueta_ai:'Cobranza',            obs_sesiones:'Bot pausado por cliente — en revisión contractual' },
+  { posventa:'Consultor CARI',      id_bot:'1422', nombre_bot:'Reservas Hotel',   estado:'🟢 Activo',  salud:'✅ Óptima',  sesiones:'19.750', etiqueta_ai:'Reservas',            obs_sesiones:'Alta temporada — tráfico elevado en marzo' },
+  { posventa:'Yeisson Ballesteros', id_bot:'1435', nombre_bot:'FAQ Seguros',      estado:'🟡 Revisión',salud:'⚠️ Alerta',  sesiones:'4.320',  etiqueta_ai:'FAQ',                 obs_sesiones:'Revisión de base de conocimiento programada' },
+  { posventa:'Consultor CARI',      id_bot:'1460', nombre_bot:'Onboarding App',   estado:'🟢 Activo',  salud:'✅ Óptima',  sesiones:'22.100', etiqueta_ai:'Onboarding',          obs_sesiones:'Tasa de completitud 88% — referente del portfolio' },
+  { posventa:'Yeisson Ballesteros', id_bot:'1471', nombre_bot:'Logística Express', estado:'🟢 Activo',  salud:'✅ Óptima',  sesiones:'9.870',  etiqueta_ai:'Logística',           obs_sesiones:'Integración con sistema de tracking activa' },
+  { posventa:'Consultor CARI',      id_bot:'1490', nombre_bot:'Encuestas NPS',    estado:'🟢 Activo',  salud:'✅ Óptima',  sesiones:'6.540',  etiqueta_ai:'NPS',                 obs_sesiones:'NPS promedio 72 — por encima de benchmark' }
+];
+
+/* -------------------------------------------------------------------
+   ESTADO GLOBAL
+   ------------------------------------------------------------------- */
+let columns    = BASE_COLS.map(c => ({ ...c })); // columnas actuales
+let rows       = [];                              // filas (objetos)
+let selectedTd = null;                            // celda seleccionada
+let recognition = null;                           // SpeechRecognition
+let micActive  = false;
+
+/* -------------------------------------------------------------------
+   INICIALIZACIÓN
+   ------------------------------------------------------------------- */
+function init() {
+  // Copiar datos iniciales
+  rows = INITIAL_DATA.map(d => ({ ...d }));
+  renderAll();
+}
+
+/* -------------------------------------------------------------------
+   RENDERIZADO COMPLETO (cabecera + cuerpo)
+   ------------------------------------------------------------------- */
+function renderAll() {
+  renderHead();
+  renderBody();
+  updateStats();
+}
+
+/* -------- CABECERA -------- */
+function renderHead() {
+  const headRow = document.getElementById('headRow');
+  // Limpiar excepto primer th (#) y último (+)
+  while (headRow.children.length > 1) headRow.removeChild(headRow.lastChild);
+
+  columns.forEach((col, ci) => {
+    const th = document.createElement('th');
+    th.textContent = col.label;
+    th.title = 'Haz doble clic para renombrar';
+    th.style.minWidth = (col.width || 140) + 'px';
+    th.style.width    = (col.width || 140) + 'px';
+    // Doble clic para renombrar columna
+    th.addEventListener('dblclick', () => renameCol(ci, th));
+    headRow.appendChild(th);
+  });
+
+  // Th de acción (eliminar fila)
+  const thAct = document.createElement('th');
+  thAct.textContent = '';
+  thAct.style.minWidth = '60px';
+  thAct.style.width = '60px';
+  headRow.appendChild(thAct);
+
+  // Botón añadir columna
+  const thAdd = document.createElement('th');
+  thAdd.className = 'add-col-btn';
+  thAdd.textContent = '＋';
+  thAdd.title = 'Agregar columna';
+  thAdd.onclick = openColModal;
+  headRow.appendChild(thAdd);
+}
+
+/* -------- CUERPO -------- */
+function renderBody() {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+
+  rows.forEach((row, ri) => {
+    const tr = document.createElement('tr');
+
+    // Celda de número
+    const tdNum = document.createElement('td');
+    tdNum.textContent = ri + 1;
+    tr.appendChild(tdNum);
+
+    // Celdas de datos
+    columns.forEach((col) => {
+      const td = makeTd(row[col.key] || '', ri, col.key);
+      tr.appendChild(td);
+    });
+
+    // Celda acción (eliminar fila)
+    const tdAct = document.createElement('td');
+    tdAct.style.minWidth = '60px';
+    tdAct.style.width = '60px';
+    tdAct.style.textAlign = 'center';
+    tdAct.style.pointerEvents = 'auto';
+    const btnDel = document.createElement('button');
+    btnDel.className = 'btn-del-row';
+    btnDel.innerHTML = '🗑';
+    btnDel.title = 'Eliminar fila';
+    btnDel.onclick = () => deleteRow(ri);
+    tdAct.appendChild(btnDel);
+    tr.appendChild(tdAct);
+
+    tbody.appendChild(tr);
+  });
+
+  // Fila para agregar nueva fila
+  const trAdd = document.createElement('tr');
+  trAdd.className = 'add-row';
+  trAdd.onclick = addRow;
+  const tdAdd = document.createElement('td');
+  tdAdd.colSpan = columns.length + 3;
+  tdAdd.textContent = '＋ Haz clic aquí para agregar una nueva fila';
+  trAdd.appendChild(tdAdd);
+  tbody.appendChild(trAdd);
+
+  updateFooter();
+}
+
+/* -------- Crear TD editable -------- */
+function makeTd(value, rowIndex, colKey) {
+  const td = document.createElement('td');
+  td.contentEditable = 'true';
+  td.textContent = value;
+  td.dataset.row = rowIndex;
+  td.dataset.col = colKey;
+  td.setAttribute('spellcheck', 'false');
+
+  // Guardar en modelo al editar
+  td.addEventListener('input', () => {
+    rows[rowIndex][colKey] = td.textContent;
+    updateStats();
+  });
+
+  // Selección visual
+  td.addEventListener('click', () => selectCell(td));
+  td.addEventListener('focus', () => selectCell(td));
+
+  return td;
+}
+
+/* -------------------------------------------------------------------
+   SELECCIÓN DE CELDA
+   ------------------------------------------------------------------- */
+function selectCell(td) {
+  if (selectedTd) selectedTd.classList.remove('selected');
+  selectedTd = td;
+  td.classList.add('selected');
+  const ri = parseInt(td.dataset.row) + 1;
+  const ck = td.dataset.col;
+  const colLabel = columns.find(c => c.key === ck)?.label || ck;
+  document.getElementById('footerCell').textContent = `Fila ${ri} · ${colLabel}`;
+  document.getElementById('micStatus').textContent = `Celda lista: Fila ${ri} — ${colLabel}`;
+  document.getElementById('micStatus').classList.remove('idle');
+}
+
+/* -------------------------------------------------------------------
+   AGREGAR FILA
+   ------------------------------------------------------------------- */
+function addRow() {
+  const newRow = {};
+  columns.forEach(c => { newRow[c.key] = ''; });
+  rows.push(newRow);
+  renderBody();
+  updateStats();
+  showToast('✅ Nueva fila agregada');
+  // Enfocar primera celda de la nueva fila
+  setTimeout(() => {
+    const allTds = document.querySelectorAll('#tableBody tr:not(.add-row) td[contenteditable]');
+    const lastRowStart = (rows.length - 1) * columns.length;
+    if (allTds[lastRowStart]) {
+      allTds[lastRowStart].focus();
+      selectCell(allTds[lastRowStart]);
+    }
+  }, 60);
+}
+
+/* -------------------------------------------------------------------
+   ELIMINAR FILA
+   ------------------------------------------------------------------- */
+function deleteRow(ri) {
+  if (rows.length <= 1) { showToast('⚠️ No se puede eliminar la última fila'); return; }
+  rows.splice(ri, 1);
+  if (selectedTd && parseInt(selectedTd.dataset.row) === ri) {
+    selectedTd = null;
+    document.getElementById('footerCell').textContent = 'ninguna';
+  }
+  renderBody();
+  updateStats();
+  showToast('🗑 Fila eliminada');
+}
+
+/* -------------------------------------------------------------------
+   MODAL NUEVA COLUMNA
+   ------------------------------------------------------------------- */
+function openColModal() {
+  document.getElementById('colNameInput').value = '';
+  document.getElementById('colModal').classList.add('open');
+  setTimeout(() => document.getElementById('colNameInput').focus(), 100);
+}
+
+function closeColModal() {
+  document.getElementById('colModal').classList.remove('open');
+}
+
+function confirmAddCol() {
+  const name = document.getElementById('colNameInput').value.trim();
+  if (!name) { showToast('⚠️ Escribe un nombre para la columna'); return; }
+  const key = 'col_' + Date.now();
+  columns.push({ key, label: name, width: 160 });
+  rows.forEach(r => { r[key] = ''; });
+  closeColModal();
+  renderAll();
+  showToast(`✅ Columna "${name}" agregada`);
+}
+
+/* -------------------------------------------------------------------
+   RENOMBRAR COLUMNA (doble clic en cabecera)
+   ------------------------------------------------------------------- */
+function renameCol(ci, th) {
+  const old = columns[ci].label;
+  const input = document.createElement('input');
+  input.value = old;
+  input.style.cssText = 'width:90%;background:transparent;border:none;border-bottom:1px solid #2bb673;color:#2bb673;font-size:.72rem;font-weight:600;text-align:center;outline:none;';
+  th.innerHTML = '';
+  th.appendChild(input);
+  input.focus();
+  input.select();
+
+  const finish = () => {
+    const nv = input.value.trim() || old;
+    columns[ci].label = nv;
+    renderHead();
+    showToast(`✏️ Columna renombrada a "${nv}"`);
+  };
+
+  input.addEventListener('blur', finish);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(); }
+    if (e.key === 'Escape') { columns[ci].label = old; renderHead(); }
+  });
+}
+/* -------------------------------------------------------------------
+   MICRÓFONO — RECONOCIMIENTO DE VOZ
+   ------------------------------------------------------------------- */
+function toggleMic() {
+  if (!selectedTd) {
+    showToast('⚠️ Primero haz clic en una celda para seleccionarla');
+    return;
+  }
+
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('❌ Tu navegador no soporta reconocimiento de voz. Usa Chrome.');
+    return;
+  }
+
+  if (micActive) {
+    stopMic();
+    return;
+  }
+
+  startMic();
+}
+
+function startMic() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-CO'; // Español de Colombia
+  recognition.continuous = false; 
+  recognition.interimResults = true; // Para escribir en vivo
+
+  micActive = true;
+  document.getElementById('btnMic').classList.add('active');
+  document.getElementById('btnMic').innerHTML = '⏹';
+  document.getElementById('micStatus').textContent = '🎙️ Escuchando... habla ahora';
+  document.getElementById('micStatus').classList.remove('idle');
+
+  recognition.onresult = function(event) {
+    let textoFinalizado = '';
+    
+    for (let i = 0; i < event.results.length; i++) {
+      // 🛡️ REGLA ESTRICTA: Solo sumamos si es un texto real y válido
+      if (event.results[i] && event.results[i] && typeof event.results[i].transcript === 'string') {
+        textoFinalizado += event.results[i].transcript;
+      }
+    }
+    
+    // 🛡️ FILTRO ANTI-UNDEFINED: Si de casualidad se cuela la palabra, la ignoramos por completo
+    if (textoFinalizado.includes('undefined')) {
+      return; 
+    }
+
+    // Si todo está limpio, inyectamos en la celda en tiempo real
+    if (selectedTd && textoFinalizado.trim() !== '') {
+      selectedTd.textContent = textoFinalizado;
+      selectedTd.style.opacity = '1';
+      
+      // Guardar en los datos internos (para que aparezca en el Excel)
+      const ri = parseInt(selectedTd.dataset.row);
+      const ck = selectedTd.dataset.col;
+      if (!isNaN(ri) && ck) {
+        rows[ri][ck] = textoFinalizado;
+        updateStats();
+      }
+    }
+  };
+
+  recognition.onerror = function(event) {
+    if (event.error !== 'no-speech') {
+      showToast('❌ Error de micrófono: ' + event.error);
+    }
+    stopMic();
+  };
+
+  recognition.onend = function() {
+    if (selectedTd) {
+      document.getElementById('micStatus').textContent = '✅ Transcripción completada';
+    }
+    stopMic();
+  };
+
+  recognition.start();
+}
+
+function stopMic() {
+  micActive = false;
+  document.getElementById('btnMic').classList.remove('active');
+  document.getElementById('btnMic').innerHTML = '🎙️';
+  if (recognition) { try { recognition.stop(); } catch(e){} }
+  if (selectedTd) selectedTd.style.opacity = '1';
+  
+  const td = selectedTd;
+  if (td) {
+    const ri = parseInt(td.dataset.row);
+    const ck = td.dataset.col;
+    const colLabel = columns.find(c => c.key === ck)?.label || ck;
+    document.getElementById('micStatus').textContent = `Celda lista: Fila ${ri+1} — ${colLabel}`;
+  } else {
+    document.getElementById('micStatus').textContent = 'Selecciona una celda y haz clic en 🎙️ para dictar';
+    document.getElementById('micStatus').classList.add('idle');
+  }
+}
+/* -------------------------------------------------------------------
+   EXPORTAR A EXCEL (XLSX vía HTML table — compatible con Excel)
+   ------------------------------------------------------------------- */
+function exportExcel() {
+  
+  let html = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="ProgId" content="Excel.Sheet" />
+  <meta name="Generator" content="CARI AI Tablero" />
+  <style>
+    body { font-family: Calibri, Arial, sans-serif; }
+    table { border-collapse: collapse; width: 100%; }
+    th {
+      background-color: #1e8f58;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 11px;
+      text-align: center;
+      border: 1px solid #2bb673;
+      padding: 8px 12px;
+      white-space: nowrap;
+    }
+    td {
+      border: 1px solid #b7e4cb;
+      padding: 7px 10px;
+      font-size: 10.5px;
+      vertical-align: middle;
+    }
+    tr:nth-child(even) td { background-color: #edfaf3; }
+    tr:nth-child(odd)  td { background-color: #ffffff; }
+    td:first-child {
+      text-align: center;
+      font-weight: bold;
+      background-color: #d4f4e5 !important;
+      color: #1e8f58;
+    }
+    .titulo {
+      font-size: 14px;
+      font-weight: bold;
+      color: #1e8f58;
+      background-color: #edfaf3;
+      padding: 10px;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <p class="titulo">CARI AI — Tablero de Seguimiento de Bots · Q1 2026</p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>`;
+
+  // Cabeceras
+  columns.forEach(col => {
+    html += `<th>${escXml(col.label)}</th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  // Filas de datos
+  rows.forEach((row, ri) => {
+    html += `<tr>`;
+    html += `<td>${ri + 1}</td>`;
+    columns.forEach(col => {
+      html += `<td>${escXml(row[col.key] || '')}</td>`;
+    });
+    html += `</tr>`;
+  });
+
+
+  html += `</tbody></table></bo` + `dy></ht` + `ml>`; // Engañamos a Live Server partiendo las etiquetas
+
+ 
+  // Descargar como .xls (abre en Excel sin errores)
+  const blob = new Blob(['\uFEFF' + html], {
+    type: 'application/vnd.ms-excel;charset=utf-8'
+  });
+
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const fecha = new Date().toISOString().slice(0, 10);
+  link.href = url;
+  link.download = `CARI_AI_Tablero_Bots_${fecha}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showToast('📊 Archivo Excel generado y descargado');
+}
+
+function escXml(str) { 
+  return String(str)
+    .replace(/&/g, '&amp;') 
+    .replace(/</g, '&lt;') 
+    .replace(/>/g, '&gt;') 
+    .replace(/"/g, '&quot;') 
+    .replace(/'/g, '&#39;'); 
+}
+
+/* -------------------------------------------------------------------
+   IMAGEN DE FONDO
+   ------------------------------------------------------------------- */
+function setBgImage(input) {
+  const file = input.files;
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const bg = document.getElementById('bg-layer');
+    bg.style.backgroundImage = `url('${e.target.result}')`;
+    bg.classList.add('has-img');
+    showToast('🖼️ Imagen de fondo aplicada');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeBg() {
+  const bg = document.getElementById('bg-layer');
+  bg.style.backgroundImage = '';
+  bg.classList.remove('has-img');
+  document.getElementById('imgInput').value = '';
+  showToast('✕ Fondo removido');
+}
+
+/* -------------------------------------------------------------------
+   ACTUALIZAR ESTADÍSTICAS (header badges)
+   ------------------------------------------------------------------- */
+function updateStats() {
+  document.getElementById('stat-total').textContent = rows.length;
+
+  // Contar activos e inactivos/alerta desde columna "estado"
+  const estKey = columns.find(c => c.key === 'estado')?.key || 'estado';
+  let activos = 0, alerta = 0;
+  rows.forEach(r => {
+    const v = (r[estKey] || '').toLowerCase();
+    if (v.includes('activo'))   activos++;
+    if (v.includes('revisión') || v.includes('revision') || v.includes('alerta') || v.includes('inactivo')) alerta++;
+  });
+  document.getElementById('stat-activos').textContent = activos || '—';
+  document.getElementById('stat-alerta').textContent  = alerta  || '—';
+}
+
+/* -------------------------------------------------------------------
+   ACTUALIZAR FOOTER
+   ------------------------------------------------------------------- */
+function updateFooter() {
+  document.getElementById('footerRows').textContent = rows.length;
+  document.getElementById('footerCols').textContent = columns.length;
+}
+
+/* -------------------------------------------------------------------
+   TOAST NOTIFICATION
+   ------------------------------------------------------------------- */
+function showToast(msg, duration = 2800) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+/* -------------------------------------------------------------------
+   CERRAR MODAL AL CLIC EN OVERLAY
+   ------------------------------------------------------------------- */
+document.getElementById('colModal').addEventListener('click', function(e) {
+  if (e.target === this) closeColModal();
+});
+
+/* -------------------------------------------------------------------
+   TECLAS GLOBALES
+   ------------------------------------------------------------------- */
+document.addEventListener('keydown', (e) => {
+  // Escape: cerrar modal
+  if (e.key === 'Escape') closeColModal();
+
+  // Tab en celda editable: mover a la siguiente celda
+  if (e.key === 'Tab' && selectedTd) {
+    e.preventDefault();
+    const allTds = Array.from(document.querySelectorAll('#tableBody td[contenteditable]'));
+    const idx = allTds.indexOf(selectedTd);
+    const nextIdx = e.shiftKey ? idx - 1 : idx + 1;
+    if (nextIdx >= 0 && nextIdx < allTds.length) {
+      allTds[nextIdx].focus();
+      selectCell(allTds[nextIdx]);
+    }
+  }
+
+  // Enter en celda: bajar a la celda de abajo
+  if (e.key === 'Enter' && selectedTd && !e.shiftKey) {
+    e.preventDefault();
+    const allTds = Array.from(document.querySelectorAll('#tableBody td[contenteditable]'));
+    const idx = allTds.indexOf(selectedTd);
+    const nextIdx = idx + columns.length;
+    if (nextIdx < allTds.length) {
+      allTds[nextIdx].focus();
+      selectCell(allTds[nextIdx]);
+    }
+  }
+});
+
+/* -------------------------------------------------------------------
+   ARRANQUE
+   ------------------------------------------------------------------- */
+init();
+</script>
+</body>
+</html>
